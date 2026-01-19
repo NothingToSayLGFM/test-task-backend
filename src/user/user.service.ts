@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -12,7 +12,15 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    return await this.userModel.create(createUserDto);
+    try {
+      return await this.userModel.create(createUserDto);
+    } catch (err: any) {
+      if (err.code === 140 || err.message.includes('over your space quota')) {
+        throw new BadRequestException(
+          'Database quota exceeded. Cannot create new user.',
+        );
+      }
+    }
   }
 
   async findAll(filter: UserFilter) {
