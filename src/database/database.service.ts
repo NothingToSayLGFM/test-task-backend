@@ -5,11 +5,6 @@ import { Model } from 'mongoose';
 import { User } from 'src/user/entities/user.entity';
 import crypto from 'node:crypto';
 
-/* 
-  Важко протестувати тк розмір бази на безплатному тарифі Mongo не вистачає 
-  мені вдалось засідити трохи меньше мільону перед тим як монга впала з аутофспейс
-  */
-
 @Injectable()
 export class DatabaseService {
   constructor(
@@ -20,7 +15,7 @@ export class DatabaseService {
     const count = await this.userModel.countDocuments();
     if (count === 0) {
       console.log('Database is empty, seeding 2 million users...');
-      await this.seedUsers();
+      await this.startSeed();
       console.log('Seeding completed.');
     }
   }
@@ -34,6 +29,7 @@ export class DatabaseService {
       try {
         const users = this.generateBatch(batchSize);
         const result = await this.userModel.insertMany(users, {
+          ordered: false,
           rawResult: true,
         });
 
@@ -44,6 +40,23 @@ export class DatabaseService {
         console.warn(`Batch ${i + 1} error:`, err);
         break;
       }
+    }
+  }
+
+  private async startSeed() {
+    await this.userModel.collection.dropIndexes();
+    await this.seedUsers();
+    await this.recreateIndexes();
+  }
+
+  private async recreateIndexes() {
+    try {
+      await this.userModel.collection.createIndexes([
+        { key: { email: 1 }, name: 'email', unique: true },
+      ]);
+      console.log('Indexes created');
+    } catch {
+      console.log(' Index creation failed');
     }
   }
 
